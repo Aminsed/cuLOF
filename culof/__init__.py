@@ -218,7 +218,7 @@ except ImportError:
                 self._not_available()
 
 # Package metadata
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 __author__ = 'Amin Sedaghat'
 __email__ = 'amin32846@gmail.com'
 __all__ = ['LOF'] 
