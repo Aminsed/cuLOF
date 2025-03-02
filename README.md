@@ -135,7 +135,7 @@ print(f"Top 5 highest LOF scores: {sorted(scores, reverse=True)[:5]}")
 
 For more detailed information, check out these resources:
 
-- [Installation Guide](INSTALL.md) - Detailed installation instructions
+- [Installation Guide](docs/INSTALL.md) - Detailed installation instructions
 - [Usage Guide](docs/usage_guide.md) - Comprehensive guide with examples
 - [Example Script](docs/example.py) - Ready-to-run example script
 - [Technical Optimizations](docs/technical_optimizations.md) - Implementation details and optimizations

@@ -1,6 +1,6 @@
 # Installation Instructions
 
-This document provides detailed instructions for installing the CUDA-accelerated LOF implementation (cuLOF).
+This document provides detailed instructions for installing the CUDA-accelerated LOF implementation.
 
 ## Prerequisites
 
@@ -10,7 +10,23 @@ This document provides detailed instructions for installing the CUDA-accelerated
 - Python 3.6 or newer (for Python bindings)
 - NumPy, scikit-learn (for comparison and testing)
 
-## System-specific Prerequisites
+## Installation Methods
+
+### PyPI Installation (Recommended)
+
+The `culof` package is available on PyPI as a source distribution:
+
+```bash
+# Install dependencies first
+pip install numpy scikit-learn matplotlib
+
+# Install culof from PyPI
+pip install culof
+```
+
+**Note**: Since this is a CUDA extension, you **must** have the CUDA toolkit installed on your system before installing the package. The package will be compiled during installation using your local CUDA setup.
+
+### System-specific Prerequisites
 
 ### Linux
 
@@ -55,7 +71,7 @@ pip install numpy scikit-learn matplotlib
 
 ### Option 1: Using pip
 
-The simplest way to install is using pip, which will automatically build the package:
+The simplest way to install from source is using pip:
 
 ```bash
 pip install git+https://github.com/Aminsed/cuLOF.git
@@ -65,70 +81,45 @@ pip install git+https://github.com/Aminsed/cuLOF.git
 
 1. Clone the repository:
    ```bash
-   git clone git@github.com:Aminsed/cuLOF.git
+   git clone https://github.com/Aminsed/cuLOF.git
    cd cuLOF
    ```
 
-2. Create a build directory:
+2. Install in development mode:
    ```bash
-   mkdir build && cd build
-   ```
-
-3. Configure with CMake:
-   ```bash
-   cmake .. -DCMAKE_BUILD_TYPE=Release
-   ```
-   
-   Additional configuration options:
-   - `-DBUILD_TESTS=ON` - Build test suite
-   - `-DPYTHON_BINDINGS=OFF` - Disable Python bindings
-   - `-DCUDA_ARCH=70` - Specify CUDA architecture (default is based on detected GPU)
-
-4. Build the project:
-   ```bash
-   make -j4  # Use 4 cores for compilation
-   ```
-
-5. Install (optional):
-   ```bash
-   make install
-   ```
-
-6. For Python bindings, install the package:
-   ```bash
-   cd ..  # Return to project root
    pip install -e .
    ```
 
+3. Or install directly:
+   ```bash
+   python setup.py install
+   ```
+
 ## Verifying Installation
-
-### C++ Library
-
-If you've built the test suite, you can run the tests:
-
-```bash
-cd build
-ctest
-```
 
 ### Python Package
 
 Verify the Python package works:
 
 ```python
-import cuda_lof
+import culof
 import numpy as np
+
+# Check package version
+print(f"Using cuLOF version: {culof.__version__}")
 
 # Generate sample data
 X = np.random.randn(100, 2).astype(np.float32)
 
 # Create LOF detector
-lof = cuda_lof.LOF(k=10)
+lof = culof.LOF()
+lof.set_k(10)
 
 # Compute outlier scores
 scores = lof.fit_predict(X)
+outliers = lof.get_outliers(scores)
 
-print(f"Detected {(scores == -1).sum()} outliers out of {len(X)} points")
+print(f"Detected {len(outliers)} outliers out of {len(X)} points")
 ```
 
 ## Troubleshooting
@@ -148,9 +139,10 @@ print(f"Detected {(scores == -1).sum()} outliers out of {len(X)} points")
    g++ --version  # or your compiler
    ```
 
-3. **Python ImportError**: Ensure that the compiled module is in your Python path:
+3. **Python ImportError**: Check that the installation completed successfully:
    ```bash
-   export PYTHONPATH=$PYTHONPATH:/path/to/cuLOF/build/python
+   # Try reinstalling with verbose output
+   pip install -v culof
    ```
 
 4. **Runtime CUDA errors**:
@@ -158,4 +150,10 @@ print(f"Detected {(scores == -1).sum()} outliers out of {len(X)} points")
    - Update your NVIDIA drivers to the latest version
    - Run `nvidia-smi` to verify that your GPU is detected and functioning
 
-For further assistance, please open an issue on the [GitHub repository](https://github.com/Aminsed/cuLOF). 
+5. **AttributeError during installation**: This typically indicates a missing or incorrectly configured CUDA environment:
+   ```
+   AttributeError: 'NoneType' object has no attribute 'name'
+   ```
+   Make sure you have CUDA toolkit installed and properly configured.
+
+For further assistance, please open an issue on the [GitHub repository](https://github.com/Aminsed/cuLOF/issues). 
