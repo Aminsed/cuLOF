@@ -16,7 +16,8 @@ except ImportError:
     except ImportError:
         raise ImportError("Could not import CUDA LOF module. Make sure it's built and installed.")
 
-__version__ = '1.0.0'
+# Version is now defined only at the end of the file
+# to avoid confusion and inconsistencies
 
 class LOF:
     """Local Outlier Factor implementation accelerated with CUDA.
