@@ -1,56 +1,42 @@
 #!/usr/bin/env python3
 """
-Simple test script to debug CUDA LOF import issues.
+Simple test script to verify we can import the CUDA module.
 """
+
 import os
 import sys
 
-# Add the build directory to the path
-build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "build", "python")
-sys.path.insert(0, build_dir)
+# Print Python version and path
+print("Python version:", sys.version)
+print("Python executable:", sys.executable)
+print("Python path:", sys.path)
+
+# Try to import numpy directly
+try:
+    import numpy
+    print("Successfully imported numpy!")
+    print("Numpy version:", numpy.__version__)
+except ImportError as e:
+    print("Error importing numpy:", e)
+
+# Add the current directory to the path
+sys.path.append(os.path.abspath('.'))
 
 try:
-    print(f"Python path: {sys.path}")
-    print(f"Looking for module in: {build_dir}")
+    import culof
+    print("Successfully imported culof package!")
+    print("Version:", culof.__version__)
     
-    # Try to import the module
-    import _cuda_lof
-    print("Module imported successfully!")
-    print(f"LOF class: {_cuda_lof.LOF}")
+    # Try to create an LOF instance
+    lof = culof.LOF(k=20)
+    print("Successfully created LOF instance!")
     
-    # Create a simple dataset
-    import numpy as np
-    X = np.array([
-        [1.0, 1.0],
-        [1.2, 0.8],
-        [0.9, 1.1],
-        [0.8, 0.8],
-        [5.0, 5.0]  # Outlier
-    ], dtype=np.float32)
-    
-    # Create LOF detector
-    lof = _cuda_lof.LOF(k=3)
-    
-    # Compute LOF scores
-    scores = lof.fit_predict(X)
-    print(f"LOF scores: {scores}")
-    
-    # Get outliers using the module function
-    outliers = _cuda_lof.get_outliers(scores, 1.5)
-    print(f"Outliers: {outliers}")
-    
-except ImportError as e:
-    print(f"Import error: {e}")
-    
-    # Check if CUDA is available
+    # Try to import the CUDA module directly
     try:
-        import torch
-        print(f"CUDA available: {torch.cuda.is_available()}")
-        print(f"CUDA device count: {torch.cuda.device_count()}")
-    except ImportError:
-        print("PyTorch not available to check CUDA")
-    
-    # List the shared library
-    print("\nShared library details:")
-    os.system(f"ls -la {build_dir}")
-    os.system(f"ldd {os.path.join(build_dir, '_cuda_lof.cpython-311-x86_64-linux-gnu.so')}") 
+        from culof import _cuda_lof
+        print("Successfully imported _cuda_lof module!")
+    except ImportError as e:
+        print("Error importing _cuda_lof:", e)
+        
+except ImportError as e:
+    print("Error importing culof:", e) 
