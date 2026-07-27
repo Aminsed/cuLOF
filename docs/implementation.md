@@ -133,15 +133,48 @@ benchmarked configuration.
 asserts exactly this: the bulk agrees tightly, disagreements are rare, every
 disagreeing point is on a near-tie, and the ranking is unchanged.
 
-## Why brute force
+## Why brute force, and why the speedup narrows
 
-cuLOF computes all $n^2$ distances. scikit-learn uses a KD-tree or ball-tree for
-low dimensionality, which is asymptotically better. The GPU wins anyway across
-the range where LOF is normally used, because $n^2$ coalesced FLOPs at
-30+ TFLOP/s beats $n \log n$ pointer-chasing on a CPU — and tree methods
-degrade towards brute force as dimensionality rises.
+cuLOF computes all $n^2$ distances. scikit-learn uses a KD-tree or ball-tree in
+low dimensions, which never examines most pairs. These are **not the same
+algorithm**, and that governs how the comparison scales.
 
-The crossover is visible in the benchmarks: the advantage is largest in the
-1,000–100,000 range and narrows beyond that as the asymptotics reassert
-themselves. In two dimensions, where KD-trees are at their best, the advantage is
-smallest.
+Fitting the measured timings in the range where both are past their fixed
+overheads:
+
+| | measured scaling |
+|---|---|
+| cuLOF, brute force | $n^{2.01}$ |
+| scikit-learn, KD-tree (d = 8) | $n^{1.13}$ |
+
+So the ratio decays as $n^{-0.7}$. A constant-factor hardware advantage, however
+large, always loses to a better asymptotic complexity eventually. Over
+50,000 → 200,000 that predicts a $4^{0.7} = 2.6\times$ fall in speedup; the
+measured fall is $2.59\times$. The narrowing is arithmetic, not a GPU running out
+of headroom.
+
+The prediction that follows is the useful one: it should be a **low-dimensional**
+effect only. KD-trees lose their advantage as dimensionality rises — the curse of
+dimensionality — and scikit-learn switches to a BLAS brute-force path. Then both
+sides are $O(n^2 d)$ and the ratio should stop decaying. It does:
+
+| n | speedup at d = 8 | speedup at d = 128 |
+|---:|---:|---:|
+| 5,000 | 32× | 15× |
+| 10,000 | 37× | 15× |
+| 20,000 | 30× | 13× |
+| 50,000 | 32× | 16× |
+| 100,000 | **21×** | **17×** |
+
+At d = 128 both implementations scale as $n^{1.9}$ and the ratio is flat, even
+rising slightly as the GPU saturates.
+
+Read together: **~15× is the honest steady-state hardware win**, sustained at any
+n once the algorithms match. The 30–60× seen at low dimensionality is larger
+partly because scikit-learn is paying tree-construction and Python overhead that
+cuLOF does not have, and it erodes at large n because the tree is genuinely doing
+less work.
+
+Closing the low-dimensional gap would mean giving up exactness — an approximate
+or indexed neighbour search such as IVF — which is a different library with a
+different contract. cuLOF returns the same neighbours scikit-learn does.
