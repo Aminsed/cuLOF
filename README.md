@@ -1,199 +1,164 @@
-# cuLOF: CUDA-Accelerated Local Outlier Factor
+<h1 align="center">cuLOF</h1>
 
-A CUDA-accelerated implementation of the Local Outlier Factor (LOF) algorithm for anomaly detection. This implementation is designed to be compatible with scikit-learn's LOF interface while providing significant speedups for larger datasets.
+<p align="center">
+  <strong>Local Outlier Factor on the GPU.</strong><br>
+  A drop-in replacement for scikit-learn's <code>LocalOutlierFactor</code>.
+</p>
 
-## ⚠️ Important Installation Note
+<p align="center">
+  <a href="https://github.com/Aminsed/cuLOF/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Aminsed/cuLOF/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="CUDA 11.0+" src="https://img.shields.io/badge/CUDA-11.0%2B-76B900">
+  <img alt="Python 3.9+" src="https://img.shields.io/badge/Python-3.9%2B-3776AB">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/License-MIT-blue"></a>
+</p>
 
-This package requires CUDA and will **not install correctly without a properly configured CUDA environment**. Due to CUDA dependencies, installation from PyPI requires compilation against your local CUDA installation.
+---
 
-## Installation
+```diff
+- from sklearn.neighbors import LocalOutlierFactor as LOF
++ from culof import LOF
 
-### Prerequisites
-
-- CUDA Toolkit 11.0+
-- Python 3.6+
-- NumPy
-- scikit-learn (for comparison)
-- C++14 compliant compiler
-- CMake 3.18+
-
-### Installing from PyPI
-
-The source distribution is available on PyPI:
-
-```bash
-# Install dependencies first
-pip install numpy scikit-learn matplotlib
-
-# Then install culof (requires CUDA toolkit)
-pip install culof
+  labels = LOF(n_neighbors=20, contamination=0.01).fit_predict(X)
 ```
 
-**⚠️ Note**: Since this is a CUDA extension, you **must** have the CUDA toolkit installed on your system before installing the package. The PyPI package is a source distribution that will be compiled during installation.
-
-If you encounter compilation errors, follow the "Installing from Source" instructions below.
-
-### Installing from Source (Recommended)
-
-```bash
-# Clone the repository
-git clone https://github.com/Aminsed/cuLOF.git
-cd cuLOF
-
-# Option 1: Development installation
-pip install -e .
-
-# Option 2: Build from source
-python setup.py install
-```
-
-### Conda Installation (Alternative)
-
-If you're having trouble with the PyPI installation, consider using conda:
-
-```bash
-# Install dependencies
-conda install -c conda-forge numpy scikit-learn cmake cudatoolkit>=11.0
-
-# Install culof from source
-pip install git+https://github.com/Aminsed/cuLOF.git
-```
-
-## Troubleshooting Installation
-
-If you encounter issues during installation:
-
-1. **CUDA Toolkit**: Ensure CUDA toolkit is properly installed and in your PATH
-   ```bash
-   nvcc --version
-   ```
-
-2. **CUDA Version**: Check that your CUDA version is 11.0 or higher
-
-3. **C++ Compiler**: Verify you have a modern C++ compiler (gcc 7+, MSVC 19.14+, clang 5+)
-   ```bash
-   g++ --version
-   ```
-
-4. **CMake**: Make sure CMake 3.18+ is installed
-   ```bash
-   cmake --version
-   ```
-
-5. **Build Output**: If installation fails, check the build output for specific errors
-   ```bash
-   # Install with verbose output
-   pip install -v culof
-   ```
-
-6. For specific errors, check the project issues or create a new one at our [GitHub repository](https://github.com/Aminsed/cuLOF/issues)
-
-## Usage
-
-Basic Python usage:
-
-```python
-import numpy as np
-from sklearn.datasets import make_blobs
-from culof import LOF
-
-# Generate sample data
-X, _ = make_blobs(n_samples=1000, centers=1, random_state=42)
-outliers = np.random.uniform(low=-10, high=10, size=(5, 2))
-X = np.vstack([X, outliers]).astype(np.float32)  # Cast to float32 for optimal performance
-
-# Create and configure LOF detector
-lof = LOF()
-lof.set_k(20)                # Set the number of neighbors (default: 20)
-lof.set_normalize(True)      # Optional: normalize the data
-lof.set_threshold(1.5)       # Optional: set custom threshold (default: 1.5)
-
-# Compute LOF scores
-scores = lof.fit_predict(X)  
-
-# Get outliers
-outliers = lof.get_outliers(scores)
-print(f"Detected {len(outliers)} outliers out of {len(X)} samples")
-```
-
-### Alternative Usage Pattern
-
-```python
-# Initialize with configuration
-lof = LOF()
-lof.set_k(20)
-
-# Compute LOF scores and get results directly 
-scores = lof.fit_predict(X)
-
-# Print detection results
-print(f"Detected {len(lof.get_outliers(scores))} outliers out of {len(X)} samples")
-print(f"Top 5 highest LOF scores: {sorted(scores, reverse=True)[:5]}")
-```
-
-## Documentation
-
-For more detailed information, check out these resources:
-
-- [Installation Guide](docs/INSTALL.md) - Detailed installation instructions
-- [Usage Guide](docs/usage_guide.md) - Comprehensive guide with examples
-- [Example Script](docs/example.py) - Ready-to-run example script
-- [Technical Optimizations](docs/technical_optimizations.md) - Implementation details and optimizations
-- [Benchmark Results](docs/benchmark_results.md) - Performance comparisons
+Same arguments, same methods, same attributes, same sign conventions — same
+answers. Changing the import is the whole migration.
 
 ## Performance
 
-This CUDA implementation achieves significant speedups compared to scikit-learn's implementation, especially for larger datasets:
+![Speedup over scikit-learn](img/benchmark_speed.png)
 
-| Dataset Size | scikit-learn (s) | CUDA LOF (s) | Speedup |
-|--------------|------------------|--------------|---------|
-| 1,050        | 0.007614         | 0.049126     | 0.15x   |
-| 2,065        | 0.022725         | 0.008887     | 2.56x   |
-| 4,065        | 0.075397         | 0.020063     | 3.76x   |
-| 8,002        | 0.261650         | 0.048288     | 5.42x   |
-| 15,750       | 0.931842         | 0.137987     | 6.75x   |
+| samples | scikit-learn | cuLOF | speedup |
+|--------:|-------------:|------:|--------:|
+| 1,000   | 0.013 s  | 0.0002 s | **63×** |
+| 5,000   | 0.097 s  | 0.0030 s | **32×** |
+| 20,000  | 0.717 s  | 0.0221 s | **33×** |
+| 50,000  | 2.970 s  | 0.0954 s | **31×** |
+| 200,000 | 16.93 s  | 1.411 s  | **12×** |
 
-Note: Performance may vary depending on your GPU and system configuration. The CUDA implementation has some overhead for small datasets but provides significant speedups for larger datasets.
+RTX A6000 vs 24-thread i9-12900K, 8 features, k=20, best of 7 runs, one-time
+CUDA context initialisation excluded. Reproduce with:
 
-## API Reference
-
-### LOF Class
-
-```python
-class LOF:
-    """Local Outlier Factor implementation accelerated with CUDA."""
+```bash
+python benchmarks/benchmark.py --max-n 200000 --json bench.json
 ```
 
-#### Methods
+Every row is also checked against scikit-learn in the same run — a speedup on a
+wrong answer is not a speedup.
 
-- `set_k(k: int)`: Set the number of neighbors to use for LOF computation.
-- `set_normalize(normalize: bool)`: Set whether to normalize the input data before computation.
-- `set_threshold(threshold: float)`: Set the threshold for outlier detection.
-- `fit_predict(X: np.ndarray)`: Compute LOF scores for the input data.
-- `get_outliers(scores: np.ndarray)`: Get the indices of outliers based on LOF scores.
+## Why it is fast
 
-## Important Notes
+**Distances are one GEMM.** Expanding `‖a-b‖² = ‖a‖² + ‖b‖² - 2a·b` turns the
+O(n²d) distance computation into a single cuBLAS `SGEMM`, which runs at a large
+fraction of peak FP32 instead of the few percent a hand-written distance loop
+reaches. The identity is numerically delicate — it cancels when `‖a‖²` dwarfs
+`‖a-b‖²` — so cuLOF centres the data first, which leaves every distance
+unchanged while making that term as small as it can be.
 
-- For optimal performance, input data should be of type `np.float32`.
-- The `culof` package API differs slightly from scikit-learn's LOF implementation.
-- The package is optimized for CUDA and will not work without a CUDA-capable GPU.
+**k-NN by selection, not sorting.** LOF needs the *set* of k neighbours and the
+k-distance; it never needs them ordered. So cuLOF selects. For non-negative
+IEEE-754 floats the integer ordering of the bit pattern is the numeric ordering,
+so a radix select on the raw bits is exact — and the k-th key it produces *is*
+the k-distance, for free. Three passes of 11 bits pin it down; a fourth gathers
+the neighbours.
 
-## Requirements
+|                | insertion sort (before) | radix select (now) |
+|----------------|-------------------------|--------------------|
+| maximum k      | 32, a fixed register array | unbounded |
+| work per row   | O(n·k)                  | O(n) per pass |
+| memory access  | stride-n across lanes   | fully coalesced |
 
-- CUDA Toolkit 11.0+
-- CMake 3.18+
-- C++14 compliant compiler
-- Python 3.6+ with NumPy and scikit-learn (for comparison and testing)
+**The n×n matrix is never materialised.** Rows are processed in tiles sized to
+free device memory, so memory grows linearly in n. At n = 200,000 a dense
+float32 distance matrix would be 149 GiB.
+
+## Accuracy
+
+![Agreement with scikit-learn](img/accuracy.png)
+
+cuLOF computes distances in float32 and scikit-learn in float64, so agreement is
+measured rather than assumed. At n = 20,000, d = 8, k = 20: **median relative
+difference 4.5×10⁻⁷**, 99th percentile 2.4×10⁻⁶, and identical top-1% rankings in
+every benchmarked configuration.
+
+The tail belongs to points whose k-th and (k+1)-th neighbours are closer
+together than float32 can resolve. There, which neighbour is "the k-th" is
+genuinely ambiguous and the two libraries may choose differently; that point's
+score can move by up to ~1%. This affects 0.27% of points, and never changed
+which points were flagged.
+[`test_near_ties_are_the_only_disagreement`](tests/python/test_parity.py) asserts
+exactly this.
+
+![Detection on three datasets](img/detection.png)
+
+## Install
+
+```bash
+pip install culof
+```
+
+Needs a CUDA toolkit (11.0+) with `nvcc` on `PATH`, CMake 3.18+, and an NVIDIA
+GPU of compute capability 7.0 or newer. The build detects your GPU's
+architecture automatically. See [docs/install.md](docs/install.md) for offline
+builds, fat binaries, and troubleshooting.
+
+## API
+
+```python
+from culof import LOF, lof
+
+# The estimator: mirrors sklearn.neighbors.LocalOutlierFactor
+model = LOF(n_neighbors=20, contamination="auto", normalize=False)
+labels = model.fit_predict(X)  # -1 outlier, 1 inlier
+model.negative_outlier_factor_  # negated LOF, sklearn's convention
+model.offset_  # the threshold predict() applies
+
+# The function: the LOF value itself, ~1.0 for a normal point
+scores = lof(X, k=20)
+```
+
+`k` has no upper bound beyond `n_samples - 1`, and runtime does not grow with
+it. Full walkthrough in [docs/usage.md](docs/usage.md).
+
+## Limitations
+
+- **Brute force.** cuLOF computes all n² distances. scikit-learn uses a KD-tree
+  for low dimensionality, which is asymptotically better, so the advantage is
+  largest between roughly 10³ and 10⁵ points and narrows beyond that. In two
+  dimensions, where KD-trees are strongest, the margin is smallest.
+- **Below ~1,000 points**, the one-off ~110 ms CUDA context initialisation
+  dominates and scikit-learn is the better tool.
+- **Transductive**, exactly like scikit-learn's: it scores the set it is given.
+  There is no `predict` for unseen points.
+- **float32 only**, with the precision boundary characterised above.
+
+## Documentation
+
+| | |
+|---|---|
+| [docs/install.md](docs/install.md) | Requirements, architectures, troubleshooting |
+| [docs/usage.md](docs/usage.md) | Choosing k, interpreting scores, migration |
+| [docs/implementation.md](docs/implementation.md) | Algorithm, kernels, determinism, memory |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Development, testing, benchmarking |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+
+## Testing
+
+```bash
+pip install -e ".[test]" && pytest tests/python     # needs a GPU
+cmake -B build -DCULOF_BUILD_TESTS=ON && cmake --build build -j
+./build/culof_tests
+```
+
+The C++ suite checks every stage against an independent double-precision CPU
+implementation of LOF; the Python suite checks agreement with scikit-learn and
+carries one regression test per defect that shipped in an earlier release.
+
+## References
+
+Breunig, Kriegel, Ng, Sander. *LOF: Identifying Density-Based Local Outliers.*
+SIGMOD 2000.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- The LOF algorithm was originally proposed by Breunig et al. in "LOF: Identifying Density-Based Local Outliers" (2000).
-- This implementation builds upon ideas from the scikit-learn implementation.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request to our [GitHub repository](https://github.com/Aminsed/cuLOF). 
+MIT — see [LICENSE](LICENSE).

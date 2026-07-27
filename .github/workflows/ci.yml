@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# GitHub-hosted runners have no NVIDIA GPU. CI therefore proves the project
+# builds across toolkits and Python versions, imports cleanly without a device,
+# and lints. Kernel correctness is covered by the two test suites on real
+# hardware -- see CONTRIBUTING.md.
+jobs:
+  build:
+    name: CUDA ${{ matrix.cuda }} / Python ${{ matrix.python }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cuda: "12.4.1", python: "3.9" }
+          - { cuda: "12.4.1", python: "3.12" }
+          - { cuda: "11.8.0", python: "3.10" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: ${{ matrix.cuda }}
+          method: network
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas-dev", "thrust"]'
+
+      - name: Build and install
+        # No GPU on the runner, so the architecture cannot be autodetected.
+        env:
+          CUDAARCHS: "70;80;86"
+        run: python -m pip install -v ".[test]"
+
+      - name: Import cleanly without a device
+        run: |
+          python - <<'PY'
+          import culof
+          print("culof", culof.__version__)
+          assert culof.cuda_available() is False, "CI runners have no GPU"
+          PY
+
+      - name: Version metadata has a single source
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          import culof
+          assert version("culof") == culof.__version__, "version skew"
+          PY
+
+      - name: GPU suite is importable and valid
+        run: python -m pytest tests/python --collect-only -q
+
+  cpp:
+    name: C++ / CUDA build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: "12.4.1"
+          method: network
+          sub-packages: '["nvcc", "cudart", "cublas", "cublas-dev", "thrust"]'
+      - name: Configure
+        env:
+          CUDAARCHS: "80"
+        run: cmake -B build -DCULOF_BUILD_TESTS=ON -DCULOF_BUILD_PYTHON=OFF
+      - name: Build
+        run: cmake --build build -j
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install ruff
+      - run: ruff check .
+      - run: ruff format --check --diff .
