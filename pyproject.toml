@@ -1,0 +1,64 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "culof"
+dynamic = ["version"]
+description = "GPU-accelerated Local Outlier Factor - a drop-in replacement for scikit-learn's LocalOutlierFactor"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Amin Sedaghat", email = "amin32846@gmail.com" }]
+keywords = ["anomaly detection", "outlier detection", "cuda", "gpu", "lof", "scikit-learn"]
+dependencies = ["numpy>=1.21"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3 :: Only",
+    "Environment :: GPU :: NVIDIA CUDA",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+# scikit-learn is needed only to verify parity and to benchmark; matplotlib only
+# to regenerate figures. Neither is a runtime dependency.
+test = ["pytest>=7", "scikit-learn>=1.0"]
+bench = ["scikit-learn>=1.0", "matplotlib>=3.5"]
+
+[project.urls]
+Homepage = "https://github.com/Aminsed/cuLOF"
+Source = "https://github.com/Aminsed/cuLOF"
+Issues = "https://github.com/Aminsed/cuLOF/issues"
+
+[tool.scikit-build.metadata.version]
+# One source of truth. The previous release carried three different version
+# strings in three files.
+provider = "scikit_build_core.metadata.regex"
+input = "src/culof/_version.py"
+
+[tool.scikit-build]
+minimum-version = "0.10"
+cmake.version = ">=3.18"
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["src/culof"]
+
+[tool.scikit-build.cmake.define]
+CULOF_BUILD_PYTHON = "ON"
+CULOF_BUILD_TESTS = "OFF"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
