@@ -36,7 +36,11 @@ jobs:
         with:
           cuda: ${{ matrix.cuda }}
           method: network
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas-dev", "cccl"]'
+          # cuBLAS and CUB are not cuda-* apt packages: the real names are
+          # libcublas-<ver>, libcublas-dev-<ver> and cuda-cccl-<ver>, so the
+          # first two go through non-cuda-sub-packages.
+          sub-packages: '["nvcc", "cudart", "cudart-dev", "cccl"]'
+          non-cuda-sub-packages: '["libcublas", "libcublas-dev"]'
 
       - name: Build and install
         # No GPU on the runner, so the architecture cannot be autodetected.
@@ -72,7 +76,11 @@ jobs:
         with:
           cuda: "12.4.1"
           method: network
-          sub-packages: '["nvcc", "cudart", "cublas", "cublas-dev", "cccl"]'
+          # cuBLAS and CUB are not cuda-* apt packages: the real names are
+          # libcublas-<ver>, libcublas-dev-<ver> and cuda-cccl-<ver>, so the
+          # first two go through non-cuda-sub-packages.
+          sub-packages: '["nvcc", "cudart", "cudart-dev", "cccl"]'
+          non-cuda-sub-packages: '["libcublas", "libcublas-dev"]'
       - name: Configure
         env:
           CUDAARCHS: "80"
