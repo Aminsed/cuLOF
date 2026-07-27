@@ -122,10 +122,15 @@ it. Full walkthrough in [docs/usage.md](docs/usage.md).
 
 ## Limitations
 
-- **Brute force.** cuLOF computes all n² distances. scikit-learn uses a KD-tree
-  for low dimensionality, which is asymptotically better, so the advantage is
-  largest between roughly 10³ and 10⁵ points and narrows beyond that. In two
-  dimensions, where KD-trees are strongest, the margin is smallest.
+- **Brute force.** cuLOF computes all n² distances (measured: n^2.01).
+  scikit-learn uses a KD-tree in low dimensions, which never looks at most pairs
+  (n^1.13). Better asymptotics beat a constant hardware factor eventually, so the
+  low-dimensional speedup decays as roughly n^-0.7. This is dimension-specific:
+  at d = 128, where KD-trees collapse and scikit-learn falls back to brute force,
+  both scale as n^1.9 and the ratio is flat at ~15× from n = 5,000 to 100,000.
+  Treat ~15× as the steady-state hardware win and the low-d figures as additionally
+  reflecting tree-build overhead scikit-learn pays and cuLOF does not.
+  [Measured tables and the reasoning.](docs/implementation.md#why-brute-force-and-why-the-speedup-narrows)
 - **Below ~1,000 points**, the one-off ~110 ms CUDA context initialisation
   dominates and scikit-learn is the better tool.
 - **Transductive**, exactly like scikit-learn's: it scores the set it is given.
