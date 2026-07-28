@@ -68,8 +68,11 @@ neighbours. LOF measures *local* density, so a dense cluster of outliers is not
 an outlier. If you expect anomalies to arrive in groups, set `n_neighbors`
 larger than the group size.
 
-`n_neighbors` may be anything from 1 to `n_samples - 1`. Runtime does not grow
-with it — selection cost is independent of k — so a large value is free.
+`n_neighbors` may be anything from 1 to `n_samples - 1`. The selection scan
+itself is independent of k, but the neighbour indices and distances are O(n·k)
+and both the density and score kernels loop over all k, so a large value is not
+free. At k = 20 the O(n²d) distance stage dominates and moderate changes barely
+register; at k in the thousands, memory and post-processing both grow.
 
 ## Input handling
 

@@ -2,7 +2,8 @@
 
 <p align="center">
   <strong>Local Outlier Factor on the GPU.</strong><br>
-  A drop-in replacement for scikit-learn's <code>LocalOutlierFactor</code>.
+  Exact LOF scores, matching scikit-learn's sign conventions,<br>
+  for the <code>fit_predict</code> workflow.
 </p>
 
 <p align="center">
@@ -21,8 +22,20 @@
   labels = LOF(n_neighbors=20, contamination=0.01).fit_predict(X)
 ```
 
-Same arguments, same methods, same attributes, same sign conventions — same
-answers. Changing the import is the whole migration.
+That transductive workflow — score every point against the dataset it came
+in with — is the one cuLOF covers, with the same sign conventions and the same
+`negative_outlier_factor_` and `offset_` attributes.
+
+**It is not a drop-in replacement for the estimator.** `algorithm`,
+`leaf_size`, `metric`, `p`, `metric_params`, `novelty` and `n_jobs` are not
+accepted; sparse and precomputed input are not supported; and `get_params`,
+`set_params`, `kneighbors` and `decision_function` do not exist, so it will not
+go into a `Pipeline` or a grid search. There is no novelty mode: `predict` and
+`score_samples` operate on the fitted data only.
+
+Agreement on what it does cover is close rather than exact — see
+[Accuracy](#accuracy) for the measured distribution and where float32 ties can
+move a score.
 
 ## Performance
 
@@ -69,8 +82,9 @@ the neighbours.
 | memory access  | stride-n across lanes   | fully coalesced |
 
 **The n×n matrix is never materialised.** Rows are processed in tiles sized to
-free device memory, so memory grows linearly in n. At n = 200,000 a dense
-float32 distance matrix would be 149 GiB.
+free device memory, so memory grows linearly in n for fixed k. The neighbour
+arrays are a separate O(n·k). At n = 200,000 a dense float32 distance matrix
+would be 149 GiB.
 
 ## Accuracy
 
@@ -117,15 +131,19 @@ model.offset_  # the threshold predict() applies
 scores = lof(X, k=20)
 ```
 
-`k` has no upper bound beyond `n_samples - 1`, and runtime does not grow with
-it. Full walkthrough in [docs/usage.md](docs/usage.md).
+`k` has no upper bound beyond `n_samples - 1`. The *selection* scan is
+independent of k, but neighbour indices and distances are O(n·k) and both
+downstream kernels loop over all k, so large k does cost time and memory. At
+k = 20 the O(n²d) distance stage dominates and moderate changes to k barely
+register. Full walkthrough in [docs/usage.md](docs/usage.md).
 
 ## Limitations
 
-- **Brute force.** cuLOF computes all n² distances (measured: n^2.01).
-  scikit-learn uses a KD-tree in low dimensions, which never looks at most pairs
-  (n^1.13). Better asymptotics beat a constant hardware factor eventually, so the
-  low-dimensional speedup decays as roughly n^-0.7. This is dimension-specific:
+- **Brute force.** cuLOF computes all n² distances (measured: n^1.94 over
+  n ≥ 50,000). scikit-learn uses a KD-tree in low dimensions, which never looks
+  at most pairs (n^1.31 over the same range). Better asymptotics beat a constant
+  hardware factor eventually, so the low-dimensional speedup decays as roughly
+  n^-0.64. This is dimension-specific:
   at d = 128, where KD-trees collapse and scikit-learn falls back to brute force,
   both scale as n^1.9 and the ratio is flat at ~15× from n = 5,000 to 100,000.
   Treat ~15× as the steady-state hardware win and the low-d figures as additionally

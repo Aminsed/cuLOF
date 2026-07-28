@@ -36,8 +36,9 @@ std::string device_info();
  * @param points    host pointer to row-major (n_points x n_dims) float32 data
  * @param n_points  number of samples, >= 2
  * @param n_dims    number of features, >= 1
- * @param k         neighbours per point, 1 <= k <= n_points - 1. No upper bound
- *                  beyond that, and the cost does not grow with k.
+ * @param k         neighbours per point, 1 <= k <= n_points - 1. Selection is
+ *                  independent of k; storage and the density/score passes are
+ *                  O(n_points * k), so large k does cost time and memory.
  * @param normalize z-score each feature before computing distances
  *
  * @throws std::invalid_argument for bad arguments, CudaError for device failure

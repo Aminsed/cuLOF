@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 name = "culof"
 dynamic = ["version"]
-description = "GPU-accelerated Local Outlier Factor - a drop-in replacement for scikit-learn's LocalOutlierFactor"
+description = "GPU-accelerated Local Outlier Factor, matching scikit-learn's fit_predict workflow"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -14,7 +14,9 @@ keywords = ["anomaly detection", "outlier detection", "cuda", "gpu", "lof", "sci
 dependencies = ["numpy>=1.21"]
 
 classifiers = [
-    "Development Status :: 4 - Beta",
+    # Alpha until CI executes a kernel: GitHub-hosted runners have no GPU,
+    # so the current gate proves the project compiles, not that it is right.
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: C++",
