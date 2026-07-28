@@ -1,6 +1,7 @@
 """Single source of truth for the package version.
 
-pyproject.toml reads it via `tool.setuptools.dynamic`, and `culof.__version__`
+pyproject.toml reads it back through the scikit-build-core regex
+metadata provider, and `culof.__version__`
 re-exports it, so there is exactly one place to bump.
 """
 

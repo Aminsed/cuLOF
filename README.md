@@ -26,7 +26,7 @@ answers. Changing the import is the whole migration.
 
 ## Performance
 
-![Speedup over scikit-learn](img/benchmark_speed.png)
+![Speedup over scikit-learn](https://raw.githubusercontent.com/Aminsed/cuLOF/main/img/benchmark_speed.png)
 
 | samples | scikit-learn | cuLOF | speedup |
 |--------:|-------------:|------:|--------:|
@@ -74,7 +74,7 @@ float32 distance matrix would be 149 GiB.
 
 ## Accuracy
 
-![Agreement with scikit-learn](img/accuracy.png)
+![Agreement with scikit-learn](https://raw.githubusercontent.com/Aminsed/cuLOF/main/img/accuracy.png)
 
 cuLOF computes distances in float32 and scikit-learn in float64, so agreement is
 measured rather than assumed. At n = 20,000, d = 8, k = 20: **median relative
@@ -89,7 +89,7 @@ which points were flagged.
 [`test_near_ties_are_the_only_disagreement`](tests/python/test_parity.py) asserts
 exactly this.
 
-![Detection on three datasets](img/detection.png)
+![Detection on three datasets](https://raw.githubusercontent.com/Aminsed/cuLOF/main/img/detection.png)
 
 ## Install
 

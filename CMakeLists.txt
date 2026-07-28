@@ -1,4 +1,24 @@
 cmake_minimum_required(VERSION 3.18)
+
+# ---------------------------------------------------------------------------
+# Find nvcc before the CUDA language is enabled.
+#
+# CMake searches only PATH for nvcc. The usual Linux install puts the toolkit
+# under /usr/local/cuda and only the driver on PATH, which would otherwise be
+# indistinguishable from having no CUDA at all -- this is why `pip install`
+# failed on machines that had a perfectly good toolkit.
+# ---------------------------------------------------------------------------
+if(NOT DEFINED CMAKE_CUDA_COMPILER AND NOT DEFINED ENV{CUDACXX})
+    file(GLOB _cuda_roots /usr/local/cuda-*)
+    find_program(_nvcc nvcc
+        HINTS ENV CUDA_HOME ENV CUDA_PATH ENV CUDA_ROOT
+              /usr/local/cuda ${_cuda_roots}
+        PATH_SUFFIXES bin)
+    if(_nvcc)
+        set(CMAKE_CUDA_COMPILER "${_nvcc}")
+    endif()
+endif()
+
 project(culof LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
