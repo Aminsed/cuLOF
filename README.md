@@ -31,10 +31,10 @@ answers. Changing the import is the whole migration.
 | samples | scikit-learn | cuLOF | speedup |
 |--------:|-------------:|------:|--------:|
 | 1,000   | 0.013 s  | 0.0002 s | **63×** |
-| 5,000   | 0.097 s  | 0.0030 s | **32×** |
-| 20,000  | 0.717 s  | 0.0221 s | **33×** |
-| 50,000  | 2.970 s  | 0.0954 s | **31×** |
-| 200,000 | 16.93 s  | 1.411 s  | **12×** |
+| 5,000   | 0.096 s  | 0.0030 s | **32×** |
+| 20,000  | 0.659 s  | 0.0221 s | **30×** |
+| 50,000  | 2.723 s  | 0.0953 s | **29×** |
+| 200,000 | 16.66 s  | 1.409 s  | **12×** |
 
 RTX A6000 vs 24-thread i9-12900K, 8 features, k=20, best of 7 runs, one-time
 CUDA context initialisation excluded. Reproduce with:
