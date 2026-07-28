@@ -33,6 +33,11 @@ from sklearn.neighbors import LocalOutlierFactor
 
 import culof
 
+# Agreement limits for the check below. float32 against float64 moves a
+# score by ~1% only where the k-th and (k+1)-th neighbours are closer than
+# float32 can separate; the ranking of the top 1% has never moved.
+MAX_REL_ERR = 0.05
+MIN_RANK_AGREEMENT = 1.0
 
 @dataclass
 class Row:
@@ -98,6 +103,16 @@ def bench_one(sweep: str, n: int, d: int, k: int, repeats: int, n_jobs: int) -> 
 
     top = max(1, n // 100)
     agree = len(set(np.argsort(-s_cu)[:top]) & set(np.argsort(-s_sk)[:top])) / top
+
+    # Enforced, not merely reported. A speedup on a wrong answer is not a
+    # speedup, and until this raised, a badly wrong build would still have
+    # printed a table and written its JSON.
+    if not np.isfinite(rel) or rel > MAX_REL_ERR or agree < MIN_RANK_AGREEMENT:
+        raise RuntimeError(
+            f"disagreement with scikit-learn at n={n}, d={d}, k={k}: "
+            f"max relative error {rel:.3e} (limit {MAX_REL_ERR:.0e}), "
+            f"top-1% rank agreement {agree:.3f} (limit {MIN_RANK_AGREEMENT:.2f})"
+        )
 
     return Row(sweep, n, d, k, t_sk, t_cu, t_sk / t_cu, rel, agree)
 

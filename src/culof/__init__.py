@@ -2,7 +2,8 @@
 
 :class:`LOF` mirrors :class:`sklearn.neighbors.LocalOutlierFactor`: same
 constructor arguments, same methods, same attributes, same sign conventions.
-Swapping the import is the whole migration.
+Covers the transductive fit_predict workflow; see the README for what the
+scikit-learn estimator does that this does not.
 
     >>> from culof import LOF
     >>> labels = LOF(n_neighbors=20).fit_predict(X)   # -1 outlier, 1 inlier
@@ -16,6 +17,7 @@ scikit-learn's negated convention.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -49,7 +51,33 @@ def _validate(X: ArrayLike, k: int) -> NDArray[np.float32]:
     # scalar loop, and the error surfaces before anything touches the GPU.
     if not np.isfinite(arr).all():
         raise ValueError("input contains NaN or infinity")
+    _check_representable(arr, n_features)
     return arr
+
+
+def _check_representable(arr: NDArray[np.float32], n_features: int) -> None:
+    """Reject input whose squared distances would overflow float32.
+
+    Distances are accumulated in float32. Centring bounds each coordinate by
+    twice the input maximum, so a squared distance is at most
+    ``n_features * (4 * max|x|)**2``. Past FLT_MAX that saturates to infinity,
+    every selection key ties at infinity, and the scores come back NaN -- which
+    the estimator reads as "inlier" for every point. Checked in logs so the
+    check itself cannot overflow.
+    """
+    if arr.size == 0:
+        return
+    max_abs = float(np.max(np.abs(arr)))
+    if max_abs == 0.0:
+        return
+    log_bound = math.log(n_features) + 2.0 * math.log(4.0 * max_abs)
+    if log_bound > math.log(float(np.finfo(np.float32).max)):
+        raise ValueError(
+            f"input magnitude {max_abs:.3g} overflows float32 when squared "
+            f"({n_features} features): distances would saturate to infinity and "
+            f"every score would be NaN. Rescale the data, or pass normalize=True "
+            f"to z-score each feature first."
+        )
 
 
 def lof(X: ArrayLike, k: int = 20, normalize: bool = False) -> NDArray[np.float32]:
@@ -61,7 +89,8 @@ def lof(X: ArrayLike, k: int = 20, normalize: bool = False) -> NDArray[np.float3
         Converted to C-contiguous float32 if it is not already.
     k : int, default=20
         Neighbours per point, excluding the point itself. Must satisfy
-        ``1 <= k <= n_samples - 1``. Runtime does not grow with ``k``.
+        ``1 <= k <= n_samples - 1``. Selection is independent of ``k``;
+        storage and the density/score passes are O(n_samples * k).
     normalize : bool, default=False
         Z-score each feature before computing distances. scikit-learn does not,
         so leave it off when comparing.
@@ -72,13 +101,25 @@ def lof(X: ArrayLike, k: int = 20, normalize: bool = False) -> NDArray[np.float3
         Around 1.0 for a point as densely surrounded as its neighbours, larger
         for one in a comparatively sparse region.
     """
-    return _culof.lof(_validate(X, k), k, normalize)
+    scores = _culof.lof(_validate(X, k), k, normalize)
+    # Backstop for anything the magnitude bound in _validate does not catch.
+    # Returning NaN here is indistinguishable from "no outliers" downstream.
+    if not np.isfinite(scores).all():
+        raise ValueError(
+            "LOF produced non-finite scores; this indicates float32 overflow or "
+            "underflow in the distance computation. Rescale the data, or pass "
+            "normalize=True."
+        )
+    return scores
 
 
 class LOF:
     """Unsupervised outlier detection with Local Outlier Factor, on the GPU.
 
-    A drop-in replacement for :class:`sklearn.neighbors.LocalOutlierFactor`.
+    Covers the transductive ``fit_predict`` workflow of
+    :class:`sklearn.neighbors.LocalOutlierFactor`, with the same sign
+    conventions. It is not a full estimator: there is no ``novelty`` mode,
+    no ``get_params``/``set_params``, and no metric selection.
 
     Parameters
     ----------
@@ -149,20 +190,24 @@ class LOF:
         del y
         return self.fit(X).predict()
 
-    def score_samples(self, X: ArrayLike | None = None) -> NDArray[np.float32]:
-        """Opposite of the LOF. The *lower*, the more abnormal.
+    def score_samples(self) -> NDArray[np.float32]:
+        """Opposite of the LOF, for the fitted data. The *lower*, the more abnormal.
 
         Matching scikit-learn, this is negated relative to the published LOF
         definition. Use :func:`culof.lof` for the value itself.
-        """
-        if X is None:
-            return self._check_fitted()
-        return -lof(X, self.n_neighbors, self.normalize)
 
-    def predict(self, X: ArrayLike | None = None) -> NDArray[np.intp]:
-        """Label samples ``-1`` (outlier) or ``1`` (inlier)."""
-        scores = self.score_samples(X)
-        return np.where(scores < self._check_offset(), -1, 1)
+        This takes no ``X``. It previously accepted one and recomputed LOF over
+        that array alone, scoring the new points against each other rather than
+        against the fitted population, then applied the offset learned during
+        ``fit``. That is a different quantity from scikit-learn's novelty mode
+        and it looked like a valid answer, so the argument is gone rather than
+        silently misleading.
+        """
+        return self._check_fitted()
+
+    def predict(self) -> NDArray[np.intp]:
+        """Label the fitted samples ``-1`` (outlier) or ``1`` (inlier)."""
+        return np.where(self.score_samples() < self._check_offset(), -1, 1)
 
     def _check_fitted(self) -> NDArray[np.float32]:
         if not hasattr(self, "negative_outlier_factor_"):

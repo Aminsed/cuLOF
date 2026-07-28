@@ -7,6 +7,7 @@ these exists, and so that removing one is a deliberate act.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 from conftest import sklearn_lof
 
 import culof
@@ -113,3 +114,76 @@ def test_version_has_one_source() -> None:
     # tree rather than an installed distribution; there is nothing to compare.
     with contextlib.suppress(PackageNotFoundError):
         assert version("culof") == culof.__version__
+
+
+# ---------------------------------------------------------------------------
+# Defects found in external review, 2026-07-28
+# ---------------------------------------------------------------------------
+
+
+def test_float32_overflow_raises_instead_of_returning_nan():
+    """Large finite coordinates used to yield NaN scores, read as "inlier".
+
+    Coordinates near 1e20 contain no NaN or infinity, so they passed
+    validation, then overflowed when squared: every selection key tied at
+    infinity and every score came back NaN. ``fit_predict`` then labelled every
+    point an inlier -- including planted extreme outliers -- because
+    ``NaN < offset`` is False. An outlier detector reporting "nothing here"
+    when it has failed is the worst available outcome.
+    """
+    rng = np.random.default_rng(0)
+    X = (rng.standard_normal((64, 4)) * 1e20).astype(np.float32)
+    with pytest.raises(ValueError, match="overflow"):
+        culof.lof(X, 5)
+
+
+def test_overflow_guard_leaves_ordinary_data_alone():
+    """The magnitude bound must not reject anything reasonable."""
+    rng = np.random.default_rng(0)
+    for scale in (1e-6, 1.0, 1e3, 1e9):
+        X = (rng.standard_normal((64, 4)) * scale).astype(np.float32)
+        scores = culof.lof(X, 5)
+        assert np.isfinite(scores).all(), f"scale {scale} produced non-finite scores"
+
+
+def test_scores_are_never_returned_non_finite():
+    """Backstop: a non-finite score must raise rather than be handed back."""
+    rng = np.random.default_rng(1)
+    X = rng.standard_normal((128, 3)).astype(np.float32)
+    scores = culof.lof(X, 10)
+    assert np.isfinite(scores).all()
+
+
+def test_predict_takes_no_X():
+    """predict(X)/score_samples(X) scored the wrong population.
+
+    They recomputed transductive LOF over ``X`` alone -- making the new points
+    each other's reference population -- and then applied the offset learned
+    during ``fit``. That is not scikit-learn's novelty semantics, and it
+    returned a plausible-looking array. The argument is gone, so the mistake is
+    a TypeError.
+    """
+    rng = np.random.default_rng(0)
+    X = rng.standard_normal((64, 3)).astype(np.float32)
+    model = culof.LOF(n_neighbors=10).fit(X)
+
+    assert model.predict().shape == (64,)
+    assert model.score_samples().shape == (64,)
+
+    with pytest.raises(TypeError):
+        model.predict(rng.standard_normal((8, 3)).astype(np.float32))
+    with pytest.raises(TypeError):
+        model.score_samples(rng.standard_normal((8, 3)).astype(np.float32))
+
+
+def test_readme_does_not_claim_drop_in_replacement():
+    """The estimator contract is far narrower than scikit-learn's."""
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parents[2]
+    readme = (root / "README.md").read_text().lower()
+    # The phrase may appear, but only as a denial.
+    assert "not a drop-in replacement" in readme
+    assert "a drop-in replacement for scikit-learn" not in readme
+    pyproject = (root / "pyproject.toml").read_text().lower()
+    assert "drop-in replacement" not in pyproject
