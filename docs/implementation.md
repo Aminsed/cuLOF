@@ -139,18 +139,19 @@ cuLOF computes all $n^2$ distances. scikit-learn uses a KD-tree or ball-tree in
 low dimensions, which never examines most pairs. These are **not the same
 algorithm**, and that governs how the comparison scales.
 
-Fitting the measured timings in the range where both are past their fixed
-overheads:
+Fitting the measured timings over $n \geq 50{,}000$, where both are past
+their fixed overheads — below that the GPU spends most of its time idle and the
+fit reports the launch overhead rather than the algorithm:
 
 | | measured scaling |
 |---|---|
-| cuLOF, brute force | $n^{2.01}$ |
-| scikit-learn, KD-tree (d = 8) | $n^{1.13}$ |
+| cuLOF, brute force | $n^{1.94}$ |
+| scikit-learn, KD-tree (d = 8) | $n^{1.31}$ |
 
-So the ratio decays as $n^{-0.7}$. A constant-factor hardware advantage, however
+So the ratio decays as $n^{-0.64}$. A constant-factor hardware advantage, however
 large, always loses to a better asymptotic complexity eventually. Over
-50,000 → 200,000 that predicts a $4^{0.7} = 2.6\times$ fall in speedup; the
-measured fall is $2.59\times$. The narrowing is arithmetic, not a GPU running out
+50,000 → 200,000 that predicts a $4^{0.64} = 2.42\times$ fall in speedup; the
+measured fall is $2.42\times$. The narrowing is arithmetic, not a GPU running out
 of headroom.
 
 The prediction that follows is the useful one: it should be a **low-dimensional**
@@ -160,14 +161,14 @@ sides are $O(n^2 d)$ and the ratio should stop decaying. It does:
 
 | n | speedup at d = 8 | speedup at d = 128 |
 |---:|---:|---:|
-| 5,000 | 32× | 15× |
-| 10,000 | 37× | 15× |
-| 20,000 | 30× | 13× |
-| 50,000 | 32× | 16× |
-| 100,000 | **21×** | **17×** |
+| 5,000 | 32× | 14× |
+| 10,000 | 33× | 15× |
+| 20,000 | 30× | 12× |
+| 50,000 | 29× | 16× |
+| 100,000 | **20×** | **17×** |
 
-At d = 128 both implementations scale as $n^{1.9}$ and the ratio is flat, even
-rising slightly as the GPU saturates.
+At d = 128 the ratio is flat — fitted over this range it scales as $n^{0.05}$ —
+and if anything rises slightly as the GPU saturates.
 
 Read together: **~15× is the honest steady-state hardware win**, sustained at any
 n once the algorithms match. The 30–60× seen at low dimensionality is larger
