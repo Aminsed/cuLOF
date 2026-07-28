@@ -39,6 +39,7 @@ import culof
 MAX_REL_ERR = 0.05
 MIN_RANK_AGREEMENT = 1.0
 
+
 @dataclass
 class Row:
     # Which sweep produced this row. Both sweeps share the (20k, d=8) point, so
