@@ -156,8 +156,17 @@ of headroom.
 
 The prediction that follows is the useful one: it should be a **low-dimensional**
 effect only. KD-trees lose their advantage as dimensionality rises — the curse of
-dimensionality — and scikit-learn switches to a BLAS brute-force path. Then both
-sides are $O(n^2 d)$ and the ratio should stop decaying. It does:
+dimensionality — and scikit-learn switches to a BLAS brute-force path.
+
+![Runtime and speedup against feature count](https://raw.githubusercontent.com/Aminsed/cuLOF/main/img/benchmark_dimensions.png)
+
+The CPU baseline is visibly *not* monotonic in `d` — it peaks at `d = 8`, where
+the tree is already struggling but has not yet been abandoned — while cuLOF's
+runtime barely moves, because a GEMM does not care about the shape of the data
+the way a tree does. That switch is the whole reason the speedup varies so much
+with dimension.
+
+Then both sides are $O(n^2 d)$ and the ratio should stop decaying. It does:
 
 | n | speedup at d = 8 | speedup at d = 128 |
 |---:|---:|---:|
